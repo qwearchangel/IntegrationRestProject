@@ -22,7 +22,10 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
@@ -50,8 +53,9 @@ public class CustomerController {
 
     @GET
     @Produces("application/json")
-    public Response getAllCustomers(@Context UriInfo uriInfo) {
+    public Response getAllCustomers(@Context UriInfo uriInfo, Request request) {
         Customer customer = new Customer();
+        int hashValue = 0;
         List<GenericLinkWrapper> wrappedCustomer = glwf.getAll(customer);
         for (GenericLinkWrapper<Customer> wc : wrappedCustomer) {
             List<Link> links = new ArrayList<>();
@@ -60,9 +64,29 @@ public class CustomerController {
                     path(Integer.toString(wc.getEntity().getId())).
                     build().toString();
             links.add(new Link(uri, "self"));
+            uri = uriInfo.getBaseUriBuilder().
+                    path(CustomerController.class).
+                    path(Integer.toString(wc.getEntity().getId())).path("order").
+                    build().toString();
+            links.add(new Link(uri, "products"));
             wc.setLink(links);
+            hashValue += wc.getEntity().hashCode();
         }
-        return Response.status(Status.OK).entity(wrappedCustomer).build();
+        
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(86400);
+        cc.setPrivate(true);
+        
+        EntityTag etag = new EntityTag(Integer.toString(hashValue));
+        
+        Response.ResponseBuilder builder = request.evaluatePreconditions(etag);
+        
+        if(builder == null) {
+            builder = Response.ok(wrappedCustomer);
+            builder.tag(etag);
+        }
+        builder.cacheControl(cc);
+        return builder.build();
     }
 
     @GET
