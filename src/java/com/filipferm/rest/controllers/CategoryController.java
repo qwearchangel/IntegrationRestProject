@@ -7,6 +7,7 @@ package com.filipferm.rest.controllers;
 
 import com.filipferm.rest.ejb.CategoryManager;
 import com.filipferm.rest.ejb.EJBCollection;
+import com.filipferm.rest.exeptions.DataNotFoundException;
 import com.filipferm.rest.model.Category;
 import com.filipferm.rest.modelWrappers.GenericLinkWrapper;
 import com.filipferm.rest.modelWrappers.GenericLinkWrapperFactory;
@@ -95,6 +96,9 @@ public class CategoryController {
     @Path("{categoryId}")
     public Response getOneCategory(@Context UriInfo uriInfo,
             @PathParam("categoryId") int id) {
+        if ( ec.getCategoryManager().getObjById(id) == null) {
+            throw new DataNotFoundException("Category With id " + id + " not found.");
+        }
         List<Category> categorys = new ArrayList<>();
         categorys.add(ec.getCategoryManager().getObjById(id));
         List<GenericLinkWrapper> category = glwf.getById(categorys);
